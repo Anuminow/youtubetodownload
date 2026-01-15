@@ -49,10 +49,12 @@ export async function POST(req) {
   const buffer = fs.readFileSync(filePath);
   fs.unlinkSync(filePath);
 
+  const encodedFilename = encodeURIComponent(file);
+
   return new Response(buffer, {
     headers: {
       "Content-Type": "video/mp4",
-      "Content-Disposition": `attachment; filename="${file}"`,
+      "Content-Disposition": `attachment; filename*=UTF-8''${encodedFilename}`,
     },
   });
 }
