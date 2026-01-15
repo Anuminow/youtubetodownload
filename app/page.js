@@ -74,6 +74,35 @@ export default function Home() {
           </div>
         </nav>
       </header>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "FAQPage",
+            mainEntity: [
+              {
+                "@type": "Question",
+                name: "How do I download YouTube videos?",
+                acceptedAnswer: {
+                  "@type": "Answer",
+                  text:
+                    "Copy the YouTube URL, paste it into the downloader, choose quality, and click Download.",
+                },
+              },
+              {
+                "@type": "Question",
+                name: "Is this YouTube video downloader free?",
+                acceptedAnswer: {
+                  "@type": "Answer",
+                  text:
+                    "Yes, the downloader allows free downloads with daily limits.",
+                },
+              },
+            ],
+          }),
+        }}
+      />
 
       <main>
         {/* Hero Section */}
@@ -144,7 +173,10 @@ export default function Home() {
               </label>
               <div className="flex flex-col md:flex-row gap-4">
                 <input
-                  type="text"
+                  type="url"
+                  aria-label="Video or file URL"
+                  aria-describedby="url-help"
+                  inputMode='url'
                   id="videoUrl"
                   value={url}
                   onChange={(e) => setUrl(e.target.value)}
@@ -159,8 +191,11 @@ export default function Home() {
                   Download
                 </button>
               </div>
-              <div className="flex items-center gap-2 text-gray-500 text-sm mt-2">
-                <span>💡</span>
+              <div
+                id="url-help"
+                className="flex items-center gap-2 text-gray-500 text-sm mt-2"
+              >
+                <span aria-hidden="true">💡</span>
                 <span>Paste any YouTube video URL to download</span>
               </div>
             </div>
@@ -173,6 +208,7 @@ export default function Home() {
               <select
                 id="quality"
                 value={quality}
+                aria-label="Select video download quality"
                 onChange={(e) => setQuality(e.target.value)}
                 className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg bg-white cursor-pointer focus:border-indigo-500 focus:outline-none transition"
               >
@@ -187,7 +223,11 @@ export default function Home() {
 
             {/* Loading State */}
             {loading && (
-              <div className="text-center py-8">
+              <div 
+                className="text-center py-8"
+                aria-live="polite"
+                aria-busy="true"
+              >
                 <div className="inline-block w-10 h-10 border-4 border-gray-200 border-t-indigo-600 rounded-full animate-spin mb-4"></div>
                 <p className="text-gray-600">Processing your video...</p>
               </div>
@@ -207,7 +247,7 @@ export default function Home() {
                   <div className="max-w-md mx-auto mb-4">
                     <img
                       src={result.thumbnail}
-                      alt="Video thumbnail"
+                      alt={`Thumbnail of ${result.title}`}
                       className="w-full rounded-lg shadow-md"
                     />
                   </div>
@@ -216,6 +256,7 @@ export default function Home() {
                   </h3>
                   <p className="text-gray-600 mb-4">Quality: {result.quality}</p>
                   <button
+                    aria-label="Start downloading YouTube video"
                     onClick={handleFinalDownload}
                     className="px-8 py-3 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition"
                   >
