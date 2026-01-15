@@ -1,7 +1,4 @@
 import { spawn } from "child_process";
-import fs from "fs";
-import path from "path";
-import os from "os";
 
 export async function POST(req) {
   const { url, quality } = await req.json();
@@ -10,11 +7,7 @@ export async function POST(req) {
     return new Response("Missing URL", { status: 400 });
   }
 
-  const tmpDir = os.tmpdir();
-  const baseName = `yt-${Date.now()}`;
-  const outputTemplate = path.join(tmpDir, `${baseName}.mp4`);
-
-  const height = quality?.replace("p", "") || "720";
+  const height = quality.replace("p", "");
 
   const args = [
     url,
@@ -22,30 +15,40 @@ export async function POST(req) {
     `bestvideo[ext=mp4][height<=${height}]+bestaudio[ext=m4a]/mp4`,
     "--merge-output-format",
     "mp4",
+    "--newline", // สำคัญมาก
     "--no-playlist",
-    "-o",
-    outputTemplate,
   ];
 
-  return new Promise((resolve, reject) => {
-    const ytdlp = spawn("yt-dlp", args);
+  const encoder = new TextEncoder();
 
-    ytdlp.on("close", () => {
-      if (!fs.existsSync(outputTemplate)) {
-        return reject("MP4 file not found");
-      }
+  const stream = new ReadableStream({
+    start(controller) {
+      const ytdlp = spawn("yt-dlp", args);
 
-      const buffer = fs.readFileSync(outputTemplate);
-      fs.unlinkSync(outputTemplate);
+      ytdlp.stdout.on("data", (data) => {
+        const text = data.toString();
 
-      resolve(
-        new Response(buffer, {
-          headers: {
-            "Content-Type": "video/mp4",
-            "Content-Disposition": `attachment; filename="${baseName}.mp4"`,
-          },
-        })
-      );
-    });
+        // ดึงเปอร์เซ็นต์ เช่น [download]  42.3%
+        const match = text.match(/(\d+\.\d+)%/);
+        if (match) {
+          controller.enqueue(
+            encoder.encode(`data: ${match[1]}\n\n`)
+          );
+        }
+      });
+
+      ytdlp.on("close", () => {
+        controller.enqueue(encoder.encode("data: done\n\n"));
+        controller.close();
+      });
+    },
+  });
+
+  return new Response(stream, {
+    headers: {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+      Connection: "keep-alive",
+    },
   });
 }

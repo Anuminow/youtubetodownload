@@ -4,6 +4,9 @@
 import { useState } from 'react';
 
 export default function Home() {
+  const [progress, setProgress] = useState(0);
+  const [downloading, setDownloading] = useState(false);
+
   const [url, setUrl] = useState('');
   const [quality, setQuality] = useState('720p');
   const [loading, setLoading] = useState(false);
@@ -41,19 +44,23 @@ export default function Home() {
     }, 2000);
   };
 
-  const handleFinalDownload = async () => {
-    const res = await fetch("/api/download", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ url, quality }),
-    });
+  const handleFinalDownload = () => {
+    setProgress(0);
+    setDownloading(true);
 
-    const blob = await res.blob();
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = "video.mp4";
-    a.click();
+    const evt = new EventSource("/api/download");
+
+    evt.onmessage = (e) => {
+      if (e.data === "done") {
+        evt.close();
+        setProgress(100);
+        setDownloading(false);
+      } else {
+        setProgress(parseFloat(e.data));
+      }
+    };
   };
+
 
 
 
@@ -274,6 +281,21 @@ export default function Home() {
                   >
                     Download Now
                   </button>
+                  {downloading && (
+                    <div className="mt-6">
+                      <div className="flex justify-between text-sm mb-1">
+                        <span>Downloading...</span>
+                        <span>{progress.toFixed(1)}%</span>
+                      </div>
+
+                      <div className="w-full bg-gray-200 rounded-full h-3">
+                        <div
+                          className="bg-indigo-600 h-3 rounded-full transition-all duration-300"
+                          style={{ width: `${progress}%` }}
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
