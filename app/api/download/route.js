@@ -1,43 +1,57 @@
 import { NextResponse } from "next/server";
+import { spawn } from "child_process";
+import fs from "fs";
+import path from "path";
+import os from "os";
 
-export const runtime = "nodejs";
+export async function POST(req) {
+  const { url, quality } = await req.json();
 
-function isSafeUrl(raw) {
-  try {
-    const u = new URL(raw);
-    return ["http:", "https:"].includes(u.protocol);
-  } catch {
-    return false;
-  }
-}
-
-export async function GET(req) {
-  const { searchParams } = new URL(req.url);
-  const url = searchParams.get("url");
-  const filename = searchParams.get("filename") || "download";
-
-  if (!url || !isSafeUrl(url)) {
-    return NextResponse.json({ error: "Invalid URL" }, { status: 400 });
+  if (!url) {
+    return NextResponse.json({ error: "Missing URL" }, { status: 400 });
   }
 
-  const res = await fetch(url, { redirect: "follow" });
+  const tmpDir = os.tmpdir();
+  const outputPath = path.join(tmpDir, `video-${Date.now()}.%(ext)s`);
 
-  if (!res.ok || !res.body) {
-    return NextResponse.json({ error: "Failed to download" }, { status: 400 });
+  let args = [
+    url,
+    "-o",
+    outputPath,
+    "--no-playlist",
+  ];
+
+  // เลือกคุณภาพ
+  if (quality === "audio") {
+    args.push("-x", "--audio-format", "mp3");
+  } else {
+    args.push(
+      "-f",
+      `bestvideo[height<=${quality.replace("p","")}]+bestaudio/best`
+    );
   }
 
-  const len = res.headers.get("content-length");
-  if (len && Number(len) > 250 * 1024 * 1024) {
-    return NextResponse.json({ error: "File too large (limit 250MB)" }, { status: 413 });
-  }
+  return new Promise((resolve) => {
+    const ytdlp = spawn("yt-dlp", args);
 
-  const contentType = res.headers.get("content-type") || "application/octet-stream";
+    ytdlp.on("close", () => {
+      const file = fs
+        .readdirSync(tmpDir)
+        .find(f => f.startsWith("video-"));
 
-  return new NextResponse(res.body, {
-    headers: {
-      "Content-Type": contentType,
-      "Content-Disposition": `attachment; filename="${filename}"`,
-      "Cache-Control": "no-store",
-    },
+      const filePath = path.join(tmpDir, file);
+      const buffer = fs.readFileSync(filePath);
+
+      fs.unlinkSync(filePath);
+
+      resolve(
+        new Response(buffer, {
+          headers: {
+            "Content-Type": "application/octet-stream",
+            "Content-Disposition": `attachment; filename="${file}"`,
+          },
+        })
+      );
+    });
   });
 }

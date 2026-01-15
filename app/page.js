@@ -41,8 +41,18 @@ export default function Home() {
     }, 2000);
   };
 
-  const handleFinalDownload = () => {
-    alert('Note: This is a demo. In a real application, this would initiate the actual download.');
+  const handleFinalDownload = async () => {
+    const res = await fetch("/api/download", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url, quality }),
+    });
+
+    const blob = await res.blob();
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "youtube-download";
+    a.click();
   };
 
   return (
@@ -223,7 +233,7 @@ export default function Home() {
 
             {/* Loading State */}
             {loading && (
-              <div 
+              <div
                 className="text-center py-8"
                 aria-live="polite"
                 aria-busy="true"
