@@ -44,22 +44,34 @@ export default function Home() {
     }, 2000);
   };
 
-  const handleFinalDownload = () => {
+  const handleFinalDownload = async () => {
     setProgress(0);
     setDownloading(true);
 
-    const evt = new EventSource("/api/download");
+    const evt = new EventSource(
+      `/api/download/progress?url=${encodeURIComponent(url)}&quality=${quality}`
+    );
 
     evt.onmessage = (e) => {
-      if (e.data === "done") {
-        evt.close();
-        setProgress(100);
-        setDownloading(false);
-      } else {
-        setProgress(parseFloat(e.data));
-      }
+      if (e.data === "done") evt.close();
+      else setProgress(parseFloat(e.data));
     };
+
+    const res = await fetch("/api/download", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url, quality }),
+    });
+
+    const blob = await res.blob();
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "video.mp4";
+    a.click();
+
+    setDownloading(false);
   };
+
 
 
 
