@@ -1,3 +1,5 @@
+/* eslint-disable @next/next/no-img-element */
+/* eslint-disable react/no-unescaped-entities */
 // app/page.js
 'use client';
 
@@ -45,17 +47,8 @@ export default function Home() {
   };
 
   const handleFinalDownload = async () => {
-    setProgress(0);
     setDownloading(true);
-
-    const evt = new EventSource(
-      `/api/download/progress?url=${encodeURIComponent(url)}&quality=${quality}`
-    );
-
-    evt.onmessage = (e) => {
-      if (e.data === "done") evt.close();
-      else setProgress(parseFloat(e.data));
-    };
+    setProgress(0);
 
     const res = await fetch("/api/download", {
       method: "POST",
@@ -63,7 +56,33 @@ export default function Home() {
       body: JSON.stringify({ url, quality }),
     });
 
-    const blob = await res.blob();
+    if (!res.ok) {
+      setDownloading(false);
+      alert("Download failed");
+      return;
+    }
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+
+    let chunks = [];
+
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+
+      const text = decoder.decode(value, { stream: true });
+
+      // progress
+      if (text.startsWith("data:")) {
+        setProgress(parseFloat(text.replace("data:", "")));
+      } else {
+        chunks.push(value);
+      }
+    }
+
+    const blob = new Blob(chunks, { type: "video/mp4" });
+
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
     a.download = "video.mp4";
@@ -71,6 +90,7 @@ export default function Home() {
 
     setDownloading(false);
   };
+
 
 
 

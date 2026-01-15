@@ -11,8 +11,13 @@ export async function POST(req) {
   }
 
   const tmpDir = os.tmpdir();
-  const filename = `video-${Date.now()}.mp4`;
-  const filePath = path.join(tmpDir, filename);
+
+  // yt-dlp template
+  const outputTemplate = path.join(
+    tmpDir,
+    "%(title).200s.%(ext)s"
+  );
+
   const height = quality.replace("p", "");
 
   const args = [
@@ -23,7 +28,7 @@ export async function POST(req) {
     "mp4",
     "--no-playlist",
     "-o",
-    filePath,
+    outputTemplate,
   ];
 
   await new Promise((resolve, reject) => {
@@ -32,13 +37,22 @@ export async function POST(req) {
     ytdlp.on("error", reject);
   });
 
+  // หาไฟล์ที่ถูกสร้างจริง
+  const files = fs.readdirSync(tmpDir);
+  const file = files.find(f => f.endsWith(".mp4"));
+
+  if (!file) {
+    return new Response("File not found", { status: 500 });
+  }
+
+  const filePath = path.join(tmpDir, file);
   const buffer = fs.readFileSync(filePath);
   fs.unlinkSync(filePath);
 
   return new Response(buffer, {
     headers: {
       "Content-Type": "video/mp4",
-      "Content-Disposition": `attachment; filename="${filename}"`,
+      "Content-Disposition": `attachment; filename="${file}"`,
     },
   });
 }
