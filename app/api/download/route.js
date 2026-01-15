@@ -1,60 +1,54 @@
 import { spawn } from "child_process";
 import fs from "fs";
-import path from "path";
 import os from "os";
+import path from "path";
+import WebSocket from "ws";
+
+const WS_URL = "wss://chidchanun.online";
 
 export async function POST(req) {
   const { url, quality } = await req.json();
-
-  if (!url) {
-    return new Response("Missing URL", { status: 400 });
-  }
-
-  const tmpDir = os.tmpdir();
-
-  // yt-dlp template
-  const outputTemplate = path.join(
-    tmpDir,
-    "%(title).200s.%(ext)s"
-  );
-
   const height = quality.replace("p", "");
+
+  const ws = new WebSocket(WS_URL);
+
+  const tmp = os.tmpdir();
+  const file = path.join(tmp, `video-${Date.now()}.mp4`);
 
   const args = [
     url,
     "-f",
-    `bestvideo[ext=mp4][height<=${height}]+bestaudio[ext=m4a]/mp4`,
+    `bestvideo[height<=${height}]+bestaudio/best`,
     "--merge-output-format",
     "mp4",
-    "--no-playlist",
+    "--newline",
     "-o",
-    outputTemplate,
+    file,
   ];
 
   await new Promise((resolve, reject) => {
     const ytdlp = spawn("yt-dlp", args);
+
+    ytdlp.stderr.on("data", (d) => {
+      const match = d.toString().match(/(\d+(?:\.\d+)?)%/);
+      if (match && ws.readyState === 1) {
+        ws.send(JSON.stringify({ progress: match[1] }));
+      }
+    });
+
     ytdlp.on("close", resolve);
     ytdlp.on("error", reject);
   });
 
-  // หาไฟล์ที่ถูกสร้างจริง
-  const files = fs.readdirSync(tmpDir);
-  const file = files.find(f => f.endsWith(".mp4"));
+  ws.close();
 
-  if (!file) {
-    return new Response("File not found", { status: 500 });
-  }
-
-  const filePath = path.join(tmpDir, file);
-  const buffer = fs.readFileSync(filePath);
-  fs.unlinkSync(filePath);
-
-  const encodedFilename = encodeURIComponent(file);
+  const buffer = fs.readFileSync(file);
+  fs.unlinkSync(file);
 
   return new Response(buffer, {
     headers: {
       "Content-Type": "video/mp4",
-      "Content-Disposition": `attachment; filename*=UTF-8''${encodedFilename}`,
+      "Content-Disposition": `attachment; filename="video.mp4"`,
     },
   });
 }

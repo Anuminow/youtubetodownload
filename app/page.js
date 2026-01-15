@@ -47,8 +47,17 @@ export default function Home() {
   };
 
   const handleFinalDownload = async () => {
-    setDownloading(true);
     setProgress(0);
+    setDownloading(true);
+
+    const ws = new WebSocket("wss://chidchanun.online");
+
+    ws.onmessage = (e) => {
+      const data = JSON.parse(e.data);
+      if (data.progress) {
+        setProgress(Number(data.progress));
+      }
+    };
 
     const res = await fetch("/api/download", {
       method: "POST",
@@ -56,44 +65,16 @@ export default function Home() {
       body: JSON.stringify({ url, quality }),
     });
 
-    if (!res.ok) {
-      setDownloading(false);
-      alert("Download failed");
-      return;
-    }
-
-    const reader = res.body.getReader();
-    const decoder = new TextDecoder();
-
-    let chunks = [];
-
-    while (true) {
-      const { value, done } = await reader.read();
-      if (done) break;
-
-      const text = decoder.decode(value, { stream: true });
-
-      // progress
-      if (text.startsWith("data:")) {
-        setProgress(parseFloat(text.replace("data:", "")));
-      } else {
-        chunks.push(value);
-      }
-    }
-
-    const blob = new Blob(chunks, { type: "video/mp4" });
-
+    const blob = await res.blob();
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
     a.download = "video.mp4";
     a.click();
 
+    ws.close();
+    setProgress(100);
     setDownloading(false);
   };
-
-
-
-
 
 
   return (
