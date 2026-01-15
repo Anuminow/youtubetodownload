@@ -4,7 +4,7 @@ import os from "os";
 import path from "path";
 import WebSocket from "ws";
 
-const WS_URL = "wss://chidchanun.online";
+const WS_URL = "wss://chidchanun.online/ws";
 
 export async function POST(req) {
   const { url, quality } = await req.json();
