@@ -198,7 +198,7 @@ export default function Home() {
                 />
                 <button
                   onClick={handleDownload}
-                  className="px-8 py-3 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition whitespace-nowrap"
+                  className="px-8 py-3 cursor-pointer bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition whitespace-nowrap"
                 >
                   Download
                 </button>
@@ -270,7 +270,7 @@ export default function Home() {
                   <button
                     aria-label="Start downloading YouTube video"
                     onClick={handleFinalDownload}
-                    className="px-8 py-3 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition"
+                    className="px-8 py-3 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition cursor-pointer"
                   >
                     Download Now
                   </button>
