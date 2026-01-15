@@ -1,197 +1,390 @@
-"use client";
+// app/page.js
+'use client';
 
-import { useState } from "react";
+import { useState } from 'react';
 
-const formats = [
-  { value: "mp3", label: "MP3", hint: "Audio • 192kbps" },
-  { value: "m4a", label: "M4A", hint: "Audio • AAC" },
-  { value: "wav", label: "WAV", hint: "Audio • Lossless" },
-  { value: "mp4", label: "MP4", hint: "Video • H.264 + AAC" },
-];
-
-function prettySize(bytes) {
-  if (!bytes && bytes !== 0) return "Unknown";
-  const units = ["B", "KB", "MB", "GB"];
-  let n = bytes;
-  let i = 0;
-  while (n >= 1024 && i < units.length - 1) {
-    n /= 1024;
-    i++;
-  }
-  return `${n.toFixed(i === 0 ? 0 : 2)} ${units[i]}`;
-}
-
-export default function Page() {
-  const [url, setUrl] = useState("");
-  const [meta, setMeta] = useState(null);
-  const [format, setFormat] = useState("mp3");
+export default function Home() {
+  const [url, setUrl] = useState('');
+  const [quality, setQuality] = useState('720p');
   const [loading, setLoading] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
+  const [result, setResult] = useState(null);
 
-  const fetchMeta = async () => {
-    setError("");
-    setMeta(null);
+  const handleDownload = async () => {
+    if (!url) {
+      alert('Please enter a YouTube URL');
+      return;
+    }
 
-    if (!url.trim()) {
-      setError("กรุณาวางลิงก์ไฟล์ก่อน");
+    if (!url.includes('youtube.com') && !url.includes('youtu.be')) {
+      alert('Please enter a valid YouTube URL');
       return;
     }
 
     setLoading(true);
-    try {
-      const res = await fetch(`/api/meta?url=${encodeURIComponent(url)}`);
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.error || "Failed");
-      setMeta(data);
-    } catch (e) {
-      setError(e.message || "เกิดข้อผิดพลาด");
-    } finally {
-      setLoading(false);
-    }
-  };
+    setResult(null);
 
-  const directDownload = () => {
-    if (!meta?.url) return;
-    const dl = `/api/download?url=${encodeURIComponent(meta.url)}&filename=${encodeURIComponent(meta.filename)}`;
-    window.location.href = dl;
-  };
-
-  const convertAndDownload = async () => {
-    if (!meta?.url) return;
-    setError("");
-    setBusy(true);
-    try {
-      const res = await fetch("/api/convert-url", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: meta.url, format }),
-      });
-
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data?.error || "Convert failed");
+    setTimeout(() => {
+      let videoId = '';
+      if (url.includes('youtube.com')) {
+        videoId = url.split('v=')[1]?.split('&')[0];
+      } else if (url.includes('youtu.be')) {
+        videoId = url.split('youtu.be/')[1]?.split('?')[0];
       }
 
-      const blob = await res.blob();
-      const u = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = u;
-      a.download = `converted.${format}`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(u);
-    } catch (e) {
-      setError(e.message || "เกิดข้อผิดพลาด");
-    } finally {
-      setBusy(false);
-    }
+      setResult({
+        videoId,
+        thumbnail: `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`,
+        title: 'YouTube Video',
+        quality: quality === 'audio' ? 'Audio Only (MP3)' : `${quality} HD`
+      });
+      setLoading(false);
+    }, 2000);
+  };
+
+  const handleFinalDownload = () => {
+    alert('Note: This is a demo. In a real application, this would initiate the actual download.');
   };
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-black text-white">
-      <div className="mx-auto max-w-4xl px-4 py-12">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-extrabold tracking-tight">Link Downloader</h1>
-            <p className="mt-2 text-sm text-white/70">
-              วางลิงก์ไฟล์ → ดาวน์โหลดได้ทันที และถ้าเป็นมีเดียสามารถแปลงไฟล์ได้
-            </p>
-          </div>
-          <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-xs text-white/70 backdrop-blur">
-            Next.js • JavaScript • Tailwind
-          </div>
-        </div>
-
-        <div className="mt-8 rounded-3xl border border-white/10 bg-white/5 p-6 shadow-2xl backdrop-blur">
-          <div className="flex flex-col gap-3 sm:flex-row">
-            <input
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
-              placeholder="วางลิงก์ไฟล์ เช่น https://.../video.mp4"
-              className="w-full flex-1 rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-sm outline-none ring-1 ring-transparent focus:ring-white/20"
-            />
-            <button
-              onClick={fetchMeta}
-              disabled={loading}
-              className="rounded-2xl bg-white px-5 py-3 text-sm font-semibold text-slate-950 hover:bg-white/90 disabled:opacity-60"
-            >
-              {loading ? "กำลังตรวจสอบ..." : "Get file"}
-            </button>
-          </div>
-
-          {error && (
-            <div className="mt-4 rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
-              {error}
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <header className="bg-white shadow-sm sticky top-0 z-50">
+        <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center py-4">
+            <div className="text-2xl font-bold text-indigo-600">
+              VideoDownloader
             </div>
-          )}
+            <ul className="hidden md:flex space-x-8">
+              <li>
+                <a href="#home" className="text-gray-700 hover:text-indigo-600 font-medium transition">
+                  Home
+                </a>
+              </li>
+              <li>
+                <a href="#tools" className="text-gray-700 hover:text-indigo-600 font-medium transition">
+                  Tools
+                </a>
+              </li>
+              <li>
+                <a href="#about" className="text-gray-700 hover:text-indigo-600 font-medium transition">
+                  About
+                </a>
+              </li>
+            </ul>
+          </div>
+        </nav>
+      </header>
 
-          {meta && (
-            <div className="mt-6 rounded-3xl border border-white/10 bg-black/30 p-5">
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                <div>
-                  <div className="text-sm text-white/60">Filename</div>
-                  <div className="mt-1 text-lg font-bold break-all">{meta.filename}</div>
-
-                  <div className="mt-3 grid grid-cols-1 gap-2 text-sm text-white/70">
-                    <div>
-                      <span className="text-white/50">Type: </span>
-                      {meta.contentType}
-                    </div>
-                    <div>
-                      <span className="text-white/50">Size: </span>
-                      {prettySize(meta.size)}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex flex-col gap-2 sm:min-w-[260px]">
-                  <button
-                    onClick={directDownload}
-                    className="rounded-2xl bg-white px-5 py-3 text-sm font-semibold text-slate-950 hover:bg-white/90"
-                  >
-                    Direct Download
-                  </button>
-
-                  <div className="rounded-2xl border border-white/10 bg-black/40 p-4">
-                    <div className="text-sm font-semibold">Convert & Download</div>
-
-                    <select
-                      value={format}
-                      onChange={(e) => setFormat(e.target.value)}
-                      className="mt-2 w-full rounded-xl bg-black/60 px-3 py-2 text-sm outline-none ring-1 ring-white/10 hover:ring-white/20"
-                      disabled={!meta.canConvert}
-                    >
-                      {formats.map((f) => (
-                        <option key={f.value} value={f.value}>
-                          {f.label} — {f.hint}
-                        </option>
-                      ))}
-                    </select>
-
-                    <button
-                      onClick={convertAndDownload}
-                      disabled={busy || !meta.canConvert}
-                      className="mt-3 w-full rounded-xl bg-white/10 px-4 py-2 text-sm font-semibold text-white hover:bg-white/15 disabled:opacity-50"
-                    >
-                      {busy ? "กำลังแปลง..." : meta.canConvert ? "Convert" : "ไฟล์นี้แปลงไม่ได้"}
-                    </button>
-
-                    <p className="mt-2 text-xs text-white/45">
-                      แปลงได้เฉพาะไฟล์ audio/video ตาม Content-Type
-                    </p>
-                  </div>
-                </div>
+      <main>
+        {/* Hero Section */}
+        <section className="text-center py-16 px-4">
+          <div className="max-w-5xl mx-auto">
+            {/* User Avatars */}
+            <div className="flex justify-center mb-4">
+              <div className="flex -space-x-2">
+                <img
+                  src="https://i.pravatar.cc/150?img=1"
+                  alt="User"
+                  className="w-10 h-10 rounded-full border-2 border-white"
+                />
+                <img
+                  src="https://i.pravatar.cc/150?img=2"
+                  alt="User"
+                  className="w-10 h-10 rounded-full border-2 border-white"
+                />
+                <img
+                  src="https://i.pravatar.cc/150?img=3"
+                  alt="User"
+                  className="w-10 h-10 rounded-full border-2 border-white"
+                />
+                <img
+                  src="https://i.pravatar.cc/150?img=4"
+                  alt="User"
+                  className="w-10 h-10 rounded-full border-2 border-white"
+                />
               </div>
             </div>
-          )}
 
-          <p className="mt-5 text-xs text-white/45">
-            ถ้าจะใช้จริง แนะนำเพิ่มการป้องกัน SSRF + จำกัดโดเมนที่อนุญาต
+            <div className="inline-block bg-gray-100 px-4 py-2 rounded-full text-sm text-gray-600 mb-4">
+              Used by 100,000+ people every month
+            </div>
+
+            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-gray-900 mb-4 leading-tight">
+              Download YouTube videos in HD quality
+            </h1>
+
+            <p className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto">
+              Save YouTube videos in high quality MP4 format. Fast, free, and works on all devices. No login or app required.
+            </p>
+
+            <div className="flex flex-wrap justify-center gap-4 mb-8">
+              <span className="bg-white px-4 py-2 rounded-lg text-sm font-medium shadow-sm">
+                10 Free/Day
+              </span>
+              <span className="bg-white px-4 py-2 rounded-lg text-sm font-medium shadow-sm">
+                Safe & Secure
+              </span>
+              <span className="bg-white px-4 py-2 rounded-lg text-sm font-medium shadow-sm">
+                HD Quality
+              </span>
+              <span className="bg-white px-4 py-2 rounded-lg text-sm font-medium shadow-sm">
+                Updated: January 2026
+              </span>
+            </div>
+          </div>
+        </section>
+
+        {/* Tool Section */}
+        <section className="max-w-5xl mx-auto px-4 mb-16">
+          <div className="bg-white rounded-2xl shadow-lg p-6 md:p-12">
+            {/* URL Input */}
+            <div className="mb-8">
+              <label htmlFor="videoUrl" className="block text-gray-900 font-semibold mb-2">
+                YouTube Video URL
+              </label>
+              <div className="flex flex-col md:flex-row gap-4">
+                <input
+                  type="text"
+                  id="videoUrl"
+                  value={url}
+                  onChange={(e) => setUrl(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && handleDownload()}
+                  placeholder="https://www.youtube.com/watch?v=..."
+                  className="flex-1 px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none transition"
+                />
+                <button
+                  onClick={handleDownload}
+                  className="px-8 py-3 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition whitespace-nowrap"
+                >
+                  Download
+                </button>
+              </div>
+              <div className="flex items-center gap-2 text-gray-500 text-sm mt-2">
+                <span>💡</span>
+                <span>Paste any YouTube video URL to download</span>
+              </div>
+            </div>
+
+            {/* Quality Selector */}
+            <div className="mb-8">
+              <label htmlFor="quality" className="block text-gray-900 font-semibold mb-2">
+                Video Quality
+              </label>
+              <select
+                id="quality"
+                value={quality}
+                onChange={(e) => setQuality(e.target.value)}
+                className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg bg-white cursor-pointer focus:border-indigo-500 focus:outline-none transition"
+              >
+                <option value="1080p">1080p - Full HD</option>
+                <option value="720p">720p - HD (Recommended)</option>
+                <option value="480p">480p - SD</option>
+                <option value="240p">240p - Low</option>
+                <option value="144p">144p - Very Low</option>
+                <option value="audio">Audio Only - MP3</option>
+              </select>
+            </div>
+
+            {/* Loading State */}
+            {loading && (
+              <div className="text-center py-8">
+                <div className="inline-block w-10 h-10 border-4 border-gray-200 border-t-indigo-600 rounded-full animate-spin mb-4"></div>
+                <p className="text-gray-600">Processing your video...</p>
+              </div>
+            )}
+
+            {/* Result Box */}
+            <div className="bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg p-12 text-center">
+              {!result ? (
+                <div>
+                  <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                    Video Ready Below 👇
+                  </h3>
+                  <p className="text-gray-500">Your downloaded video will appear here</p>
+                </div>
+              ) : (
+                <div className="animate-fadeIn">
+                  <div className="max-w-md mx-auto mb-4">
+                    <img
+                      src={result.thumbnail}
+                      alt="Video thumbnail"
+                      className="w-full rounded-lg shadow-md"
+                    />
+                  </div>
+                  <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                    {result.title}
+                  </h3>
+                  <p className="text-gray-600 mb-4">Quality: {result.quality}</p>
+                  <button
+                    onClick={handleFinalDownload}
+                    className="px-8 py-3 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition"
+                  >
+                    Download Now
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </section>
+
+        {/* Steps Section */}
+        <section className="max-w-7xl mx-auto px-4 py-16">
+          <h2 className="text-3xl md:text-4xl font-bold text-center text-gray-900 mb-4">
+            How to Download YouTube Videos in 3 Steps
+          </h2>
+          <p className="text-center text-gray-600 text-lg mb-12 max-w-3xl mx-auto">
+            Our YouTube video downloader makes it incredibly easy to save your favorite content
           </p>
+
+          <div className="grid md:grid-cols-3 gap-8 mb-16">
+            <div className="bg-white p-8 rounded-xl shadow-sm">
+              <div className="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center font-bold text-lg mb-4">
+                1
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-3">
+                Copy YouTube URL
+              </h3>
+              <p className="text-gray-600">
+                Open YouTube and find the video you want to download. Click the Share button below the video and select "Copy link" to copy the YouTube URL to your clipboard.
+              </p>
+            </div>
+
+            <div className="bg-white p-8 rounded-xl shadow-sm">
+              <div className="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center font-bold text-lg mb-4">
+                2
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-3">
+                Paste URL Here
+              </h3>
+              <p className="text-gray-600">
+                Paste the YouTube URL into our YouTube video downloader tool above. Click the "Paste" button or press Ctrl+V (Cmd+V on Mac) to paste the link.
+              </p>
+            </div>
+
+            <div className="bg-white p-8 rounded-xl shadow-sm">
+              <div className="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center font-bold text-lg mb-4">
+                3
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-3">
+                Download Your Video
+              </h3>
+              <p className="text-gray-600">
+                Click the "Download" button and wait for processing. Our YouTube video downloader will fetch the video and save it in HD quality to your device.
+              </p>
+            </div>
+          </div>
+
+          <h2 className="text-3xl md:text-4xl font-bold text-center text-gray-900 mb-12">
+            Why Use Our YouTube Video Downloader?
+          </h2>
+
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+            <div className="bg-white p-8 rounded-xl shadow-sm text-center">
+              <div className="text-5xl mb-4">⚡</div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                Lightning Fast
+              </h3>
+              <p className="text-gray-600">
+                Download YouTube videos in seconds. Our YouTube video downloader is optimized for speed with real-time progress updates.
+              </p>
+            </div>
+
+            <div className="bg-white p-8 rounded-xl shadow-sm text-center">
+              <div className="text-5xl mb-4">🎬</div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                HD Quality
+              </h3>
+              <p className="text-gray-600">
+                Download YouTube videos in the highest quality available. Get crisp, clear videos in 720p or 1080p MP4 format.
+              </p>
+            </div>
+
+            <div className="bg-white p-8 rounded-xl shadow-sm text-center">
+              <div className="text-5xl mb-4">📱</div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                Works on All Devices
+              </h3>
+              <p className="text-gray-600">
+                Use our YouTube video downloader on iPhone, Android, desktop, or tablet. No app installation needed—works in any browser.
+              </p>
+            </div>
+
+            <div className="bg-white p-8 rounded-xl shadow-sm text-center">
+              <div className="text-5xl mb-4">🔒</div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                Safe & Secure
+              </h3>
+              <p className="text-gray-600">
+                Your privacy matters. We don't store your data or downloaded videos. Everything is processed securely.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        {/* FAQ Section */}
+        <section className="max-w-4xl mx-auto px-4 py-16">
+          <div className="bg-white rounded-2xl shadow-lg p-8 md:p-12">
+            <h2 className="text-3xl md:text-4xl font-bold text-center text-gray-900 mb-12">
+              Frequently Asked Questions
+            </h2>
+
+            <div className="space-y-6">
+              <div className="border-b border-gray-200 pb-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                  How do I download YouTube videos?
+                </h3>
+                <p className="text-gray-600">
+                  To download YouTube videos, simply copy the video URL from YouTube, paste it into our YouTube video downloader tool, and click Download. Our tool saves videos in high quality MP4 format. No login or app installation required.
+                </p>
+              </div>
+
+              <div className="border-b border-gray-200 pb-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                  Is this YouTube video downloader free?
+                </h3>
+                <p className="text-gray-600">
+                  Yes! Our YouTube video downloader offers 10 free downloads per day. You can upgrade to premium for unlimited downloads without any restrictions.
+                </p>
+              </div>
+
+              <div className="border-b border-gray-200 pb-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                  What video quality can I download?
+                </h3>
+                <p className="text-gray-600">
+                  Our YouTube video downloader saves videos in the best available quality, typically HD (720p or 1080p) depending on the original video quality on YouTube.
+                </p>
+              </div>
+
+              <div className="border-b border-gray-200 pb-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                  Do I need to install an app to download YouTube videos?
+                </h3>
+                <p className="text-gray-600">
+                  No! Our YouTube video downloader is web-based and works directly in your browser. No app installation needed. Works on desktop, mobile, iPhone, Android, and all devices.
+                </p>
+              </div>
+
+              <div className="pb-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                  Is it safe to download YouTube videos?
+                </h3>
+                <p className="text-gray-600">
+                  Yes, our YouTube video downloader is completely safe and secure. We don't store your data or downloaded content. All downloads are processed securely. Please respect copyright and only download content you have permission to use.
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      {/* Footer */}
+      <footer className="bg-gray-900 text-white py-12 mt-16">
+        <div className="max-w-7xl mx-auto px-4 text-center">
+          <p className="mb-2">&copy; 2026 VideoDownloader. All rights reserved.</p>
+          <p className="text-gray-400 text-sm">Terms of Service • Privacy Policy</p>
         </div>
-      </div>
-    </main>
+      </footer>
+    </div>
   );
 }
