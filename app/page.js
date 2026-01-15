@@ -46,34 +46,51 @@ export default function Home() {
     }, 2000);
   };
 
-  const handleFinalDownload = async () => {
+  const handleFinalDownload = () => {
     setProgress(0);
     setDownloading(true);
 
-    const ws = new WebSocket("wss://chidchanun.online");
+    const ws = new WebSocket("wss://chidchanun.online/ws");
+
+    ws.onopen = () => {
+      ws.send(
+        JSON.stringify({
+          action: "download",
+          url,
+          quality,
+        })
+      );
+    };
 
     ws.onmessage = (e) => {
       const data = JSON.parse(e.data);
-      if (data.progress) {
+
+      if (data.progress !== undefined) {
         setProgress(Number(data.progress));
+      }
+
+      if (data.done && data.downloadUrl) {
+        ws.close();
+        setProgress(100);
+        setDownloading(false);
+
+        const a = document.createElement("a");
+        a.href = data.downloadUrl;
+        a.download = data.filename || "video.mp4";
+        a.click();
+      }
+
+      if (data.error) {
+        alert(data.error);
+        ws.close();
+        setDownloading(false);
       }
     };
 
-    const res = await fetch("/api/download", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ url, quality }),
-    });
-
-    const blob = await res.blob();
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = "video.mp4";
-    a.click();
-
-    ws.close();
-    setProgress(100);
-    setDownloading(false);
+    ws.onerror = () => {
+      alert("WebSocket connection failed");
+      setDownloading(false);
+    };
   };
 
 
