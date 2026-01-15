@@ -1,4 +1,3 @@
-import { NextResponse } from "next/server";
 import { spawn } from "child_process";
 import fs from "fs";
 import path from "path";
@@ -8,62 +7,42 @@ export async function POST(req) {
   const { url, quality } = await req.json();
 
   if (!url) {
-    return NextResponse.json({ error: "Missing URL" }, { status: 400 });
+    return new Response("Missing URL", { status: 400 });
   }
 
   const tmpDir = os.tmpdir();
   const baseName = `yt-${Date.now()}`;
-  const outputTemplate = path.join(tmpDir, `${baseName}.%(ext)s`);
+  const outputTemplate = path.join(tmpDir, `${baseName}.mp4`);
 
-  let args = [
+  const height = quality?.replace("p", "") || "720";
+
+  const args = [
     url,
+    "-f",
+    `bestvideo[ext=mp4][height<=${height}]+bestaudio[ext=m4a]/mp4`,
+    "--merge-output-format",
+    "mp4",
+    "--no-playlist",
     "-o",
     outputTemplate,
-    "--no-playlist",
   ];
-
-  let isAudio = false;
-
-  if (quality === "audio") {
-    isAudio = true;
-    args.push(
-      "-x",
-      "--audio-format",
-      "mp3",
-      "--audio-quality",
-      "192K"
-    );
-  } else {
-    args.push(
-      "-f",
-      `bestvideo[height<=${quality.replace("p", "")}]+bestaudio/best`
-    );
-  }
 
   return new Promise((resolve, reject) => {
     const ytdlp = spawn("yt-dlp", args);
 
     ytdlp.on("close", () => {
-      const files = fs.readdirSync(tmpDir);
-      const file = files.find(f =>
-        f.startsWith(baseName) &&
-        (isAudio ? f.endsWith(".mp3") : true)
-      );
-
-      if (!file) {
-        return reject("File not found");
+      if (!fs.existsSync(outputTemplate)) {
+        return reject("MP4 file not found");
       }
 
-      const filePath = path.join(tmpDir, file);
-      const buffer = fs.readFileSync(filePath);
-
-      fs.unlinkSync(filePath);
+      const buffer = fs.readFileSync(outputTemplate);
+      fs.unlinkSync(outputTemplate);
 
       resolve(
         new Response(buffer, {
           headers: {
-            "Content-Type": isAudio ? "audio/mpeg" : "application/octet-stream",
-            "Content-Disposition": `attachment; filename="${file}"`,
+            "Content-Type": "video/mp4",
+            "Content-Disposition": `attachment; filename="${baseName}.mp4"`,
           },
         })
       );

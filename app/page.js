@@ -51,9 +51,10 @@ export default function Home() {
     const blob = await res.blob();
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
-    a.download = quality === "audio" ? "audio.mp3" : "video.mp4";
+    a.download = "video.mp4";
     a.click();
   };
+
 
 
   return (
